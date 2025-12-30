@@ -1,0 +1,32 @@
+# Core
+python-dotenv
+pydantic
+pydantic-settings
+requests
+colorama
+
+# Voice / Audio (The Ear & The Voice)
+SpeechRecognition
+pyaudio
+elevenlabs
+edge-tts
+pydub
+openai-whisper
+playsound==1.2.2
+
+# AI / Intelligence (The Brain)
+openai
+langchain
+langchain-openai
+langchain-community
+
+# Windows Automation (The Hands)
+uiautomation
+pyautogui
+pywinauto
+keyboard
+mouse
+
+# UI (Premium Stack)
+PySide6
+pyqtdarktheme  # Para temas oscuros base modernos
