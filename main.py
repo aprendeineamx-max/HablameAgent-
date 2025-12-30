@@ -61,6 +61,9 @@ class AgentWorker(QObject):
                 time.sleep(0.5)
                 continue
 
+            # INTERRUPCIÓN (Barge-in): Si detectamos voz, callamos al agente
+            self.voice.stop()
+
             user_text = user_text.lower()
             self.text_recognized.emit(user_text, "user")
             
@@ -76,19 +79,46 @@ class AgentWorker(QObject):
                 self.text_recognized.emit(f"Plan: {action_plan}", "agent")
                 
                 # ACTUANDO
+                # ACTUANDO
                 self.status_changed.emit("Ejecutando...", "speaking")
+                
+                # Definir función de habla en hilo para no bloquear escucha (Barge-in)
+                def speak_async(text):
+                    # Stop previous if any
+                    self.voice.stop()
+                    # Run in separate thread
+                    threading.Thread(target=self.voice.speak, args=(text,), daemon=True).start()
+
                 if action_plan:
-                    success = self.hands.execute_task(action_plan)
-                    if success:
-                        self.status_changed.emit("Listo", "idle")
+                    action_type = action_plan.get("action")
+                    params = action_plan.get("parameters", {})
+                    
+                    if action_type == "chat":
+                        response_text = params.get("text", "...")
+                        speak_async(response_text)
+                        self.status_changed.emit("Respondiendo", "idle")
+                        
+                    elif action_type == "clarify":
+                        question = params.get("question", "¿Puedes repetir?")
+                        speak_async(question)
+                        self.status_changed.emit("Esperando respuesta...", "listening")
+                        
+                    elif action_type == "error":
+                         speak_async("Hubo un error en mi proceso cognitivo.")
+                         
                     else:
-                        nervous_system.error("SYSTEM", "Fallo durante la ejecución.")
-                        self.status_changed.emit("Error", "idle")
+                        # Acción física (Motor) - Estas sí bloquean por seguridad
+                        success = self.hands.execute_task(action_plan)
+                        if success:
+                            self.status_changed.emit("Listo", "idle")
+                        else:
+                            nervous_system.error("SYSTEM", "Fallo durante la ejecución.")
+                            self.status_changed.emit("Error", "idle")
                 else:
-                    self.voice.speak("No entendí.")
+                    speak_async("No entendí.")
                     self.status_changed.emit("No entendido", "idle")
             
-            time.sleep(0.5)
+            time.sleep(0.1)
 
     def stop(self):
         self.running = False

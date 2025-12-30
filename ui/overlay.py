@@ -8,64 +8,76 @@ from PySide6.QtGui import QColor
 from core.config import settings
 from core.ear import Ear
 
-# --- PROFESSIONAL THEME ---
+# --- MODERN DESIGN SYSTEM (OVERLAY) ---
 THEME = {
-    "bg": "#121212",
-    "panel_bg": "#1e1e1e",
-    "accent": "#00e5ff",  # Cyan
-    "text_main": "#ffffff",
-    "text_dim": "#888888",
-    "danger": "#ff3333",
-    "success": "#00ff88",
-    "font_main": "Segoe UI",
-    "font_mono": "Consolas"
+    "surface0": "#0F172A",  # Main Canvas (Deep Slate)
+    "surface1": "#1E293B",  # Cards/Panels
+    "surface2": "#334155",  # Borders/Hover
+    "accent": "#06B6D4",    # Cyan 500 (Primary Action)
+    "success": "#10B981",   # Emerald
+    "error": "#EF4444",     # Red
+    "text_main": "#F8FAFC", # White-ish
+    "text_dim": "#94A3B8"   # Slate 400
 }
 
 STYLESHEET = f"""
 QWidget {{
     background-color: transparent;
     color: {THEME['text_main']};
-    font-family: '{THEME['font_main']}', sans-serif;
+    font-family: 'Segoe UI', 'Inter', sans-serif;
 }}
 QFrame#MainPanel {{
-    background-color: {THEME['panel_bg']};
-    border: 1px solid #333;
-    border-radius: 8px;
+    background-color: {THEME['surface0']};
+    border: 1px solid {THEME['surface2']};
+    border-radius: 12px;
 }}
 QComboBox {{
-    background-color: #2a2a2a;
-    border: 1px solid #444;
-    border-radius: 4px;
-    padding: 4px;
+    background-color: {THEME['surface1']};
+    border: 1px solid {THEME['surface2']};
+    border-radius: 6px;
+    padding: 4px 8px;
     color: {THEME['accent']};
-    font-family: '{THEME['font_mono']}';
+    font-family: 'Consolas', monospace;
     font-size: 11px;
+    min-height: 20px;
+}}
+QComboBox:hover {{
+    border: 1px solid {THEME['accent']};
+}}
+QComboBox::drop-down {{
+    border: none;
 }}
 QPushButton {{
-    background-color: #2a2a2a;
-    border: 1px solid #444;
-    border-radius: 4px;
+    background-color: {THEME['surface1']};
+    border: 1px solid {THEME['surface2']};
+    border-radius: 6px;
     padding: 6px;
     font-weight: bold;
-    font-size: 11px;
+    font-size: 12px;
+    color: {THEME['text_main']};
 }}
 QPushButton:hover {{
     border-color: {THEME['accent']};
     color: {THEME['accent']};
+    background-color: {THEME['surface2']};
 }}
 QTextEdit {{
-    background-color: #111;
-    border: 1px solid #333;
-    border-radius: 4px;
-    font-family: '{THEME['font_mono']}';
+    background-color: {THEME['surface1']};
+    border: 1px solid {THEME['surface2']};
+    border-radius: 8px;
+    font-family: 'Consolas', monospace;
     font-size: 10px;
-    color: #ccc;
+    color: {THEME['text_dim']};
+    padding: 8px;
 }}
 QLabel#Header {{
-    font-weight: bold;
-    font-size: 14px;
+    font-weight: 800;
+    font-size: 13px;
     color: {THEME['accent']};
     letter-spacing: 1px;
+}}
+QLabel {{
+    color: {THEME['text_main']};
 }}
 """
 
@@ -118,10 +130,10 @@ class ControlPanel(QWidget):
         # 2. STATUS INFO (Mic Name)
         info_row = QHBoxLayout()
         self.lbl_mic_info = QLabel("MIC: Initializing...")
-        self.lbl_mic_info.setStyleSheet(f"color: {THEME['text_dim']}; font-family: Consolas; font-size:10px;")
+        self.lbl_mic_info.setStyleSheet(f"color: {THEME['text_dim']}; font-family: 'Consolas', monospace; font-size:10px;")
         
         self.lbl_status = QLabel("● READY")
-        self.lbl_status.setStyleSheet(f"color: {THEME['success']}; font-family: Consolas; font-weight:bold;")
+        self.lbl_status.setStyleSheet(f"color: {THEME['success']}; font-family: 'Consolas', monospace; font-weight:bold;")
         
         info_row.addWidget(self.lbl_mic_info)
         info_row.addStretch()
@@ -182,7 +194,7 @@ class ControlPanel(QWidget):
             background-color: #000;
             border: 1px solid #333;
             border-radius: 4px;
-            font-family: '{THEME['font_mono']}';
+            font-family: 'Consolas', monospace;
             font-size: 9px;
             color: #0f0;
         """)

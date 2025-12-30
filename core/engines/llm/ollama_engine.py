@@ -10,15 +10,15 @@ from core.logger import nervous_system
 class OllamaEngine:
     """Local LLM using Ollama (LLaMA 3.1)"""
     
-    def __init__(self, model="llama3.1:8b"):
-        """
-        Initialize Ollama engine
-        
-        Args:
-            model: Model name (llama3.1:8b, llama3.1:70b, etc.)
-        """
+    def __init__(self, model="llama3.2:1b"):
+        self.host = "http://localhost:11434"
         self.model = model
-        nervous_system.cognitive(f"Inicializando Ollama ({model})...")
+        self.max_retries = 2
+        
+        try:
+            nervous_system.cognitive(f"Inicializando Ollama ({self.model})...")
+        except Exception as e:
+            print(f"Error log: {e}")
         
         # Check if Ollama is running
         if not self.is_available():
@@ -92,15 +92,28 @@ class OllamaEngine:
         """Check if Ollama is running and model is available"""
         try:
             # Try to list models
-            models = ollama.list()
+            response = ollama.list()
             
-            # Check if our model is available
-            model_names = [m['name'] for m in models.get('models', [])]
-            if self.model in model_names or self.model.split(':')[0] in [m.split(':')[0] for m in model_names]:
-                return True
+            # Response is an object with .models attribute
+            if hasattr(response, 'models'):
+                models = response.models
+                model_names = [m.model for m in models if hasattr(m, 'model')]
             else:
-                nervous_system.error("COGNITIVE", f"Modelo '{self.model}' no encontrado. Ejecuta: ollama pull {self.model}")
+                nervous_system.error("COGNITIVE", f"Formato inesperado de ollama.list(): {response}")
                 return False
+            
+            # Check if our model is available (exact match or base name match)
+            if self.model in model_names:
+                return True
+            
+            # Check base name (e.g., "llama3.1" from "llama3.1:8b")
+            base_model = self.model.split(':')[0]
+            for name in model_names:
+                if name.startswith(base_model):
+                    return True
+            
+            nervous_system.error("COGNITIVE", f"Modelo '{self.model}' no encontrado. Ejecuta: ollama pull {self.model}")
+            return False
                 
         except Exception as e:
             nervous_system.error("COGNITIVE", f"Ollama no disponible: {e}")

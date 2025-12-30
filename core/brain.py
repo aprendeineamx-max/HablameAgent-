@@ -89,28 +89,59 @@ class Brain:
         ACCIONES DISPONIBLES:
         
         BÁSICAS:
-        1. "open_app": {"app_name": "nombre"} -> Abrir programas (notepad, chrome, calculator)
+        1. "open_app": {"app_name": "nombre_o_ruta"} -> Abrir programas, carpetas o archivos (Ej: "notepad", "C:/Users")
         2. "type": {"text": "texto"} -> Escribir texto
         3. "press_key": {"key": "tecla"} -> Presionar tecla o combinación (enter, ctrl+c)
         4. "click": {"element": "nombre"} -> Clic en botones/menús (tiene fallback inteligente)
+        5. "create_file": {"path": "ruta", "content": "texto"} -> Crear archivo de texto (OS level)
         
         COMANDOS DIRECTOS (Más rápidos y confiables):
-        5. "save": {} -> Guardar documento actual (Ctrl+S)
-        6. "minimize": {} -> Minimizar ventana activa
-        7. "maximize": {} -> Maximizar ventana activa
-        8. "close_window": {} -> Cerrar ventana activa
-        9. "refresh": {} -> Actualizar/Recargar (F5)
-        10. "screenshot": {} -> Tomar captura de pantalla
-        11. "switch_app": {} -> Cambiar entre aplicaciones
+        6. "save": {} -> Guardar documento actual (Ctrl+S)
+        7. "minimize": {} -> Minimizar ventana activa
+        8. "maximize": {} -> Maximizar ventana activa
+        9. "close_window": {} -> Cerrar ventana activa
+        10. "refresh": {} -> Actualizar/Recargar (F5)
+        11. "screenshot": {} -> Tomar captura de pantalla
+        12. "switch_app": {} -> Cambiar entre aplicaciones
         
         ESPECIALES:
-        12. "chain": {"steps": [...]} -> Ejecutar múltiples acciones en secuencia
-        13. "unknown": {} -> Si no entiendes el comando
+        SPECIALS:
+        12. "chain": {"steps": [{"action": "...", "parameters": ...}, ...]} -> Multi-step sequence
+        13. "unknown": {} -> If command is unintelligible
+        14. "chat": {"text": "Respuesta conversacional..."} -> PARLOTE/AMIGO. Úsalo para responder preguntas, saludar o conversar.
+        15. "clarify": {"question": "¿Qué archivo quieres?"} -> PREGUNTA. Úsalo si la orden es ambigua y necesitas más info.
 
-        IMPORTANTE: Prefiere comandos directos cuando sea posible. Por ejemplo:
-        - "guarda esto" -> usa "save" en vez de click en "Guardar"
-        - "minimiza" -> usa "minimize" en vez de click en botón minimizar
-        - "cierra" -> usa "close_window" en vez de click en X
+        MODOS DE OPERACIÓN (Adáptate según el contexto):
+        - Si el usuario SALUDA o PREGUNTA algo general ("¿Cómo estás?", "¿Qué es AI?"): USA "chat".
+        - Si el usuario ORDENA ("Abre esto", "Escribe aquello"): USA "open_app", "type", etc.
+        - Si la orden es CLARA pero compleja: USA "chain".
+        - Si la orden es AMBIGUA ("Abre el archivo"): USA "clarify".
+
+        IMPORTANTE: 
+        - Si el usuario pide crear un archivo, PREFIERE "create_file" (es más seguro que abrir notepad).
+        - Si el usuario pide varias cosas ("abre esto y escribe aquello"), USA "chain".
+        
+        Ejemplo Chain:
+        User: "Abre notepad y escribe hola"
+        {
+            "thought": "Usuario pide secuencia",
+            "action": "chain",
+            "parameters": {
+                "steps": [
+                    {"action": "open_app", "parameters": {"app_name": "notepad"}},
+                    {"action": "type", "parameters": {"text": "hola"}}
+                ]
+            }
+        }
+
+        Ejemplo Chat:
+        User: "Hola amigo"
+        { "thought": "Saludo social", "action": "chat", "parameters": { "text": "¡Hola! ¿En qué te ayudo hoy?" } }
+
+        Ejemplo Clarify:
+        User: "Abre el documento"
+        { "thought": "Ambiguo, hay muchos docs", "action": "clarify", "parameters": { "question": "¿Cual documento necesitas? ¿El de reporte o notas?" } }
+
 
         Ejemplo 1 - Comando directo:
         User: "guarda el documento"

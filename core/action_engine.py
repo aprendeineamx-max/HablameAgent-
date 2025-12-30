@@ -114,6 +114,25 @@ class AutomationEngine:
             nervous_system.error("MOTOR", f"Error en hotkey: {e}")
             return False
 
+    def _do_create_file(self, params):
+        """Creates a file with specific content (OS Level)"""
+        path = params.get("path", "")
+        content = params.get("content", "")
+        
+        if not path:
+             nervous_system.error("MOTOR", "Falta ruta para crear archivo")
+             return False
+             
+        nervous_system.motor(f"Creando archivo: {path}")
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(content)
+            nervous_system.motor("✓ Archivo creado exitosamente")
+            return True
+        except Exception as e:
+            nervous_system.error("MOTOR", f"Error creando archivo: {e}")
+            return False
+
     def _do_click(self, params):
         target_name = params.get("element", "")
         nervous_system.motor(f"Escaneando entorno visual buscando: '{target_name}'...")

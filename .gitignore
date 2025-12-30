@@ -62,6 +62,8 @@ recordings/
 models/
 *.pth
 *.pt
+*.onnx
+kokoro/
 
 # Git tools installation script (temporary)
 install_git_tools.ps1

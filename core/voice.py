@@ -7,27 +7,115 @@ from elevenlabs.client import ElevenLabs
 from core.config import settings
 from core.logger import nervous_system
 
+import pyttsx3
+from core.config import settings
+from core.logger import nervous_system
+from core.tech_manager import tech_manager
+
+# Import Kokoro Engine
+try:
+    from core.engines.tts.kokoro_engine import KokoroEngine
+    KOKORO_AVAILABLE = True
+except ImportError:
+    KOKORO_AVAILABLE = False
+
 class Voice:
     def __init__(self):
+        # Init pyttsx3 for local fallback/primary
+        try:
+            self.engine = pyttsx3.init()
+            self.engine.setProperty('rate', 150)
+            # Select first spanish voice if available
+            voices = self.engine.getProperty('voices')
+            for v in voices:
+                if "spanish" in v.name.lower() or "es-" in v.id.lower():
+                    self.engine.setProperty('voice', v.id)
+                    break
+        except Exception:
+            self.engine = None
+            
+        # Init Kokoro (Lazy load inside engine usually, but we check availability)
+        self.kokoro = None
+        if KOKORO_AVAILABLE:
+            # We don't init immediately to avoid slow startup unless it's the active engine
+            # But let's check tech_manager to see if we should
+            if tech_manager.get_active_engine("tts") == "kokoro":
+                self.kokoro = KokoroEngine()
+            
+        # Init Audio Player
+        try:
+             from core.player import AudioPlayer
+             self.player = AudioPlayer()
+        except Exception:
+             self.player = None
+
         self.eleven = None
+        # Only init ElevenLabs if explicitly active or key present AND user wants it
         if settings.ELEVENLABS_API_KEY:
             try:
                 self.eleven = ElevenLabs(api_key=settings.ELEVENLABS_API_KEY)
-                nervous_system.vocal("Cuerdas Vocales (ElevenLabs) Listas.")
-            except Exception as e:
-                nervous_system.error("VOCAL", f"Error ElevenLabs: {e}")
+            except Exception:
+                pass
+
+    def stop(self):
+        """Stop current speech immediately"""
+        if self.player:
+            self.player.stop()
+        if self.engine:
+            self.engine.stop() # pyttsx3 stop
 
     def speak(self, text):
         """
-        Habla el texto dado. Detecta automáticamente si usar ElevenLabs (Cloud) o EdgeTTS (Local).
+        Habla el texto dado usando el motor configurado en TechnologyManager.
         """
-        nervous_system.vocal(f"Sintetizando voz: '{text}'")
+        # Stop previous before starting new
+        self.stop()
         
-        if settings.is_cloud_mode and self.eleven and settings.ELEVENLABS_VOICE_ID:
-            self._speak_elevenlabs(text)
+        active_engine = tech_manager.get_active_engine("tts")
+        nervous_system.vocal(f"Sintetizando voz ({active_engine}): '{text}'")
+        
+        try:
+            if active_engine == "elevenlabs" and self.eleven:
+                self._speak_elevenlabs(text)
+            elif active_engine == "pyttsx3":
+                self._speak_local(text)
+            elif active_engine == "kokoro":
+                self._speak_kokoro(text)
+            elif active_engine == "edge_tts":
+                asyncio.run(self._speak_edge_tts(text))
+            else:
+                # Fallback default
+                asyncio.run(self._speak_edge_tts(text))
+        except Exception as e:
+            nervous_system.error("VOCAL", f"Error en TTS ({active_engine}): {e}")
+            # Ultimate fallback
+            if active_engine != "pyttsx3":
+                self._speak_local(text)
+
+    def _speak_local(self, text):
+        """Usa pyttsx3 (100% offline)"""
+        if self.engine:
+            self.engine.say(text)
+            self.engine.runAndWait()
         else:
-            # Necesitamos un loop para correr la función async de edge-tts
-            asyncio.run(self._speak_edge_tts(text))
+            nervous_system.error("VOCAL", "Motor local pyttsx3 no inicializado")
+
+    def _speak_kokoro(self, text):
+        """Usa Kokoro TTS (Local High Quality)"""
+        if not self.kokoro:
+            self.kokoro = KokoroEngine()
+        
+        # Now returns audio data tuple (samples, sample_rate) or False
+        result = self.kokoro.generate(text, return_data=True)
+        
+        if result:
+            samples, sample_rate = result
+            if self.player:
+                self.player.play(samples, sample_rate)
+            else:
+                nervous_system.error("VOCAL", "AudioPlayer no disponible")
+        else:
+            raise Exception("Fallo generación Kokoro")
 
     def _speak_elevenlabs(self, text):
         output_file = "temp_eleven.mp3"

@@ -5,6 +5,7 @@ import os
 import pyaudio
 from core.config import settings
 from core.logger import nervous_system
+from core.tech_manager import tech_manager
 
 # Import local STT engine
 try:
@@ -13,6 +14,15 @@ try:
 except ImportError:
     FASTER_WHISPER_AVAILABLE = False
     nervous_system.sensory("Faster-Whisper no disponible, usando cloud STT")
+
+# Import VAD & Wake Word engines
+try:
+    from core.engines.vad.silero_engine import SileroVadEngine
+    from core.engines.wakeword.porcupine_engine import PorcupineEngine
+    ADVANCED_AUDIO_AVAILABLE = True
+except ImportError:
+    ADVANCED_AUDIO_AVAILABLE = False
+    nervous_system.sensory("Módulos de audio avanzado no disponibles")
 
 class Ear:
     def __init__(self):
@@ -32,7 +42,8 @@ class Ear:
                 settings.MIC_DEVICE_INDEX = self.device_index
         
         nervous_system.sensory(f"Inicializando micrófono (Index: {self.device_index})...")
-        self.microphone = sr.Microphone(device_index=self.device_index)
+        # 16000Hz is required for Porcupine and ideal for Silero/Whisper
+        self.microphone = sr.Microphone(device_index=self.device_index, sample_rate=16000)
         
         # HuggingFace headers (fallback option)
         self.hf_headers = {
@@ -47,6 +58,29 @@ class Ear:
                 nervous_system.sensory("✓ Faster-Whisper engine disponible")
             except Exception as e:
                 nervous_system.error("SENSORY", f"Error inicializando Faster-Whisper: {e}")
+        
+        # Initialize Advanced Audio (VAD & Wake Word)
+        self.vad_engine = None
+        self.wake_word_engine = None
+        
+        if ADVANCED_AUDIO_AVAILABLE:
+            # Check active stack configuration
+            active_vad = tech_manager.get_active_engine("vad")
+            active_wake = tech_manager.get_active_engine("wake_word")
+            
+            # Initialize VAD
+            if active_vad == "silero":
+                try:
+                    self.vad_engine = SileroVadEngine(threshold=0.5)
+                except Exception as e:
+                    nervous_system.error("SENSORY", f"Error init VAD: {e}")
+            
+            # Initialize Wake Word
+            if active_wake == "porcupine":
+                try:
+                    self.wake_word_engine = PorcupineEngine()
+                except Exception as e:
+                    nervous_system.error("SENSORY", f"Error init Porcupine: {e}")
         
         nervous_system.sensory("Nervio Auditivo (Local + Cloud) Inicializado.")
 
@@ -109,15 +143,56 @@ class Ear:
 
     def listen(self, timeout=5, phrase_time_limit=10):
         try:
+            # Wake Word Loop (blocking if enabled)
+            # TODO: Implement full wake word loop here. 
+            # For now, we assume "Always Active" or handle it in main loop if needed.
+            # But let's add VAD verification post-capture.
+
             with self.microphone as source:
+                # Wake Word Loop (blocking if enabled)
+                if self.wake_word_engine:
+                    nervous_system.sensory(f"Esperando palabra clave ({self.wake_word_engine.keywords})...")
+                    frame_len = self.wake_word_engine.get_frame_length()
+                    
+                    while True:
+                        # Read frame for Porcupine
+                        try:
+                            # Read raw bytes from PyAudio stream
+                            pcm_data = source.stream.read(frame_len)
+                            
+                            idx = self.wake_word_engine.process(pcm_data)
+                            if idx >= 0:
+                                nervous_system.sensory("⚡ Wake Word detectado!")
+                                # Optional: Play sound here
+                                break
+                        except Exception as e:
+                            nervous_system.error("SENSORY", f"Error en loop Wake Word: {e}")
+                            break # Fail safe to normal listening
+
                 nervous_system.sensory("Escuchando ambiente...")
-                # Ajuste manual calibrado
-                self.recognizer.dynamic_energy_threshold = True  # Re-habilitar ajuste dinamico
-                # self.recognizer.energy_threshold = 1000  # Dejar que el dinámico decida o iniciar en 300
-                self.recognizer.pause_threshold = 0.8    # Un poco mas de espera para pausas naturales
-                self.recognizer.adjust_for_ambient_noise(source, duration=0.5)
+                
+                # Dynamic adjustment or manual
+                if self.vad_engine:
+                    # If VAD is improved, we trust it more, but SR still needs energy thresh
+                    # We keep standard SR behavior for capturing, then verify with Silero
+                    self.recognizer.adjust_for_ambient_noise(source, duration=0.5)
+                else:
+                    self.recognizer.dynamic_energy_threshold = True
+                    self.recognizer.pause_threshold = 0.8
+                    self.recognizer.adjust_for_ambient_noise(source, duration=0.5)
+                
                 audio = self.recognizer.listen(source, timeout=timeout, phrase_time_limit=phrase_time_limit)
             
+            # VAD Verification (Silero)
+            if self.vad_engine:
+                nervous_system.sensory("Verificando voz humana (VAD)...")
+                # SR AudioData to bytes
+                is_speech = self.vad_engine.is_speech(audio.get_raw_data())
+                if not is_speech:
+                    nervous_system.sensory("VAD: Ruido detectado, ignorando.")
+                    return ""
+                nervous_system.sensory("VAD: Voz confirmada.")
+
             # Procesar transcripción
             nervous_system.sensory("Audio capturado. Procesando...")
             
@@ -142,14 +217,6 @@ class Ear:
             except Exception as e:
                 nervous_system.error("SENSORY", f"Google STT error: {e}")
             
-            # FALLBACK 2: HuggingFace Whisper (if key available)
-            if settings.HUGGINGFACE_API_KEY:
-                nervous_system.sensory("Intentando HuggingFace Whisper (último recurso)...")
-                text = self._transcribe_hf(audio)
-                if text:
-                    nervous_system.sensory(f"HF Whisper escuchó: {text}")
-                    return text
-            
             nervous_system.sensory("No se pudo transcribir el audio.")
             return ""  # No transcription found
 
@@ -165,43 +232,6 @@ class Ear:
             import time; time.sleep(1)
             return None
 
-    def _transcribe_hf(self, audio_data):
-        """Envía el audio a HuggingFace Inference API (Whisper Large v3)"""
-        try:
-            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_audio:
-                temp_audio.write(audio_data.get_wav_data())
-                temp_audio_path = temp_audio.name
-
-            with open(temp_audio_path, "rb") as f:
-                data = f.read()
-
-            response = requests.post(
-                settings.HUGGINGFACE_WHISPER_URL,
-                headers=self.hf_headers,
-                data=data
-            )
-            
-            os.remove(temp_audio_path)
-
-            if response.status_code == 200:
-                result = response.json()
-                text = result.get("text", "")
-                nervous_system.sensory(f"Input Interpretado: '{text}'")
-                return text
-            else:
-                nervous_system.error("SENSORY", f"Error HF ({response.status_code}): {response.text}")
-                return self._transcribe_local_fallback(audio_data)
-
-        except Exception as e:
-            nervous_system.error("SENSORY", f"Excepción HF: {e}")
-            return self._transcribe_local_fallback(audio_data)
-
-    def _transcribe_local_fallback(self, audio_data):
-        try:
-            text = self.recognizer.recognize_google(audio_data, language="es-ES")
-            nervous_system.sensory(f"Fallback (Google) escuchó: {text}")
-            return text
-        except:
             return ""
 
 if __name__ == "__main__":

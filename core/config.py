@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     SAMBANOVA_API_KEY: str | None = None
     SAMBANOVA_URL: str = "https://api.sambanova.ai/v1"
 
+    # Porcupine
+    PICOVOICE_ACCESS_KEY: str | None = None
+
     # Ear (HuggingFace)
     HUGGINGFACE_API_KEY: str | None = None
     HUGGINGFACE_WHISPER_URL: str = "https://api-inference.huggingface.co/models/openai/whisper-large-v3"

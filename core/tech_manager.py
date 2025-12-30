@@ -40,6 +40,34 @@ class TechnologyManager:
             config = self._get_default_config()
             self._save_config(config)
             return config
+
+    def _save_config(self, config: Dict):
+        """Save configuration to file"""
+        with open(self.config_file, 'w', encoding='utf-8') as f:
+            json.dump(config, f, indent=4)
+
+    def get_engine_option(self, category: str, engine_id: str, option_name: str) -> Any:
+        """Get a specific option for an engine (e.g. voice, model)"""
+        engine_config = self.active_config.get("technologies", {}).get(category, {}).get(engine_id, {})
+        # First check 'options' dict, then top level
+        options = engine_config.get("options", {})
+        return options.get(option_name, engine_config.get(option_name))
+
+    def set_engine_option(self, category: str, engine_id: str, option_name: str, value: Any):
+        """Set a specific option for an engine"""
+        if "technologies" not in self.active_config:
+            self.active_config["technologies"] = {}
+        if category not in self.active_config["technologies"]:
+            self.active_config["technologies"][category] = {}
+        if engine_id not in self.active_config["technologies"][category]:
+            # Should exist, but safety first
+            return
+            
+        if "options" not in self.active_config["technologies"][category][engine_id]:
+            self.active_config["technologies"][category][engine_id]["options"] = {}
+            
+        self.active_config["technologies"][category][engine_id]["options"][option_name] = value
+        self._save_config(self.active_config)
     
     def _get_default_config(self) -> Dict:
         """Get default configuration with ALL available technologies"""
@@ -64,11 +92,11 @@ class TechnologyManager:
                 },
                 "local_only": {
                     "stt": "faster_whisper",
-                    "tts": "edge_tts",  # Using Edge TTS (good quality, free)
-                    "llm": "ollama_llama",
+                    "tts": "kokoro",  # Best local TTS
+                    "llm": "local_llama",
                     "motor": "uiautomation",
-                    "wake_word": "none",
-                    "vad": "none"
+                    "wake_word": "porcupine",
+                    "vad": "silero"
                 },
                 "gaming": {
                     "stt": "faster_whisper",
@@ -128,16 +156,16 @@ class TechnologyManager:
                         "description": "Premium voice cloning"
                     },
                     "pyttsx3": {
-                        "name": "pyttsx3 (Local)",
+                        "name": "Local TTS (pyttsx3)",
                         "status": "active",
                         "requires_key": False,
                         "free": True,
                         "category": "Local",
-                        "description": "Offline TTS, basic quality"
+                        "description": "100% Offline, Robotic voice but private"
                     },
                     "kokoro": {
                         "name": "Kokoro TTS (82M)",
-                        "status": "not_installed",
+                        "status": "active",
                         "requires_key": False,
                         "free": True,
                         "category": "Local",
@@ -146,10 +174,10 @@ class TechnologyManager:
                     }
                 },
                 "llm": {
-                    "sambanova": {
-                        "name": "SambaNova (Llama 3.3 70B)",
+                    "local_llama": {
+                        "name": "Local LLaMA (Ollama 3.2 1B)",
                         "status": "active",
-                        "requires_key": True,
+                        "requires_key": False,
                         "free": True,
                         "category": "Cloud",
                         "latency": "~1-2s"
@@ -164,14 +192,15 @@ class TechnologyManager:
                         "latency": "~1-3s"
                     },
                     "local_llama": {
-                        "name": "Local LLaMA 3.1 (Ollama)",
+                        "name": "Local LLaMA 3.2 (1B)",  # Changed to 1B for low RAM
                         "status": "not_installed",
                         "requires_key": False,
                         "free": True,
                         "category": "Local",
-                        "description": "Run LLM offline with Ollama",
-                        "install_cmd": "Install Ollama from ollama.ai"
-                    }
+                        "description": "Ultra-fast, low RAM usage (Ideal for this PC)",
+                        "install_cmd": "ollama pull llama3.2:1b"
+                    },
+
                 },
                 "motor": {
                     "uiautomation": {
@@ -253,7 +282,7 @@ class TechnologyManager:
                         "name": "Mem0 (Long-term Memory)",
                         "status": "not_installed",
                         "description": "Remembers user preferences across sessions",
-                        "install_cmd": "pip install mem0"
+                        "install_cmd": "pip install mem0ai"
                     }
                 },
                 "context": {
@@ -341,7 +370,25 @@ class TechnologyManager:
         self._save_config()
         
         nervous_system.system(f"Switched {category} to {engine_name}")
+        nervous_system.system(f"Switched {category} to {engine_name}")
         return True
+
+    def set_advanced_module_status(self, module_id: str, status: str):
+        """Update status of an advanced module"""
+        advanced = self.active_config.get("advanced_modules", {})
+        found = False
+        
+        for category, modules in advanced.items():
+            if module_id in modules:
+                modules[module_id]["status"] = status
+                found = True
+                break
+        
+        if found:
+            self._save_config()
+            nervous_system.system(f"Updated advanced module {module_id} status to {status}")
+            return True
+        return False
     
     def test_engine(self, category: str, engine_name: str) -> Tuple[str, str]:
         """

@@ -6,7 +6,8 @@ import sys
 from PySide6.QtWidgets import (QApplication, QDialog, QVBoxLayout, QHBoxLayout,
                                QLabel, QPushButton, QRadioButton, QButtonGroup,
                                QLineEdit, QFrame, QTabWidget, QWidget, QTextEdit,
-                               QComboBox, QGroupBox)
+                               QComboBox, QGroupBox, QScrollArea, QMessageBox, 
+                               QProgressDialog)
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont
 
@@ -14,99 +15,170 @@ from core.tech_manager import tech_manager
 from core.logger import nervous_system
 
 
+# --- MODERN DESIGN SYSTEM ---
 THEME = {
-    "bg": "#1a1a1a",
-    "panel": "#252525",
-    "accent": "#00e5ff",
-    "success": "#00ff88",
-    "warning": "#ffaa00",
-    "error": "#ff3333",
-    "text": "#ffffff",
-    "dim": "#888888"
+    "surface0": "#0F172A",  # Main Canvas (Deep Slate)
+    "surface1": "#1E293B",  # Cards/Panels
+    "surface2": "#334155",  # Borders/Hover
+    "accent": "#06B6D4",    # Cyan 500 (Primary Action)
+    "accent_hover": "#22D3EE", 
+    "secondary": "#8B5CF6", # Violet 500 (Highlights)
+    "success": "#10B981",   # Emerald
+    "error": "#EF4444",     # Red
+    "text_main": "#F8FAFC", # White-ish
+    "text_dim": "#94A3B8"   # Slate 400
 }
 
 STYLESHEET = f"""
 QDialog {{
-    background-color: {THEME['bg']};
-    color: {THEME['text']};
-    font-family: 'Segoe UI', sans-serif;
+    background-color: {THEME['surface0']};
+    color: {THEME['text_main']};
+    font-family: 'Segoe UI', 'Inter', sans-serif;
 }}
+
+/* --- TABS --- */
 QTabWidget::pane {{
-    border: 1px solid #333;
-    background: {THEME['panel']};
-    border-radius: 4px;
+    border: 1px solid {THEME['surface2']};
+    background: {THEME['surface0']};
+    border-radius: 8px;
+    margin-top: -1px;
+}}
+QTabWidget::tab-bar {{
+    left: 10px;
 }}
 QTabBar::tab {{
-    background: {THEME['panel']};
-    color: {THEME['dim']};
-    padding: 8px 16px;
-    border: 1px solid #333;
-    border-bottom: none;
-    border-top-left-radius: 4px;
-    border-top-right-radius: 4px;
+    background: {THEME['surface0']};
+    color: {THEME['text_dim']};
+    padding: 10px 20px;
+    margin-right: 4px;
+    border-bottom: 2px solid transparent;
+    font-weight: bold;
+    font-size: 13px;
 }}
 QTabBar::tab:selected {{
-    background: {THEME['bg']};
     color: {THEME['accent']};
     border-bottom: 2px solid {THEME['accent']};
 }}
-QGroupBox {{
-    border: 1px solid #444;
+QTabBar::tab:hover {{
+    color: {THEME['text_main']};
+    background: {THEME['surface1']};
     border-radius: 4px;
-    margin-top: 12px;
-    padding-top: 12px;
-    color: {THEME['accent']};
+}}
+
+/* --- CARDS & GROUPS --- */
+QGroupBox {{
+    background-color: {THEME['surface1']};
+    border: 1px solid {THEME['surface2']};
+    border-radius: 12px;
+    margin-top: 24px;
+    padding-top: 24px;
     font-weight: bold;
+    font-size: 12px;
+    color: {THEME['accent']};
 }}
 QGroupBox::title {{
     subcontrol-origin: margin;
-    left: 10px;
-    padding: 0 5px;
-}}
-QRadioButton {{
-    color: {THEME['text']};
-    spacing: 8px;
-}}
-QRadioButton::indicator {{
-    width: 16px;
-    height: 16px;
-}}
-QRadioButton::indicator:checked {{
-    background-color: {THEME['accent']};
-    border: 2px solid {THEME['accent']};
-    border-radius: 8px;
-}}
-QLineEdit {{
-    background: #1a1a1a;
-    border: 1px solid #444;
+    left: 16px;
+    top: 0px;
+    padding: 0 8px;
+    background-color: {THEME['surface1']}; 
     border-radius: 4px;
-    padding: 6px;
-    color: {THEME['text']};
-    font-family: 'Consolas';
-}}
-QPushButton {{
-    background: #2a2a2a;
-    border: 1px solid #444;
-    border-radius: 4px;
-    padding: 6px 12px;
-    color: {THEME['text']};
-    font-weight: bold;
-}}
-QPushButton:hover {{
-    border-color: {THEME['accent']};
     color: {THEME['accent']};
 }}
+
+/* --- CONTROLS --- */
+QRadioButton {{
+    color: {THEME['text_main']};
+    spacing: 10px;
+    padding: 4px;
+    font-size: 13px;
+}}
+QRadioButton::indicator {{
+    width: 20px;
+    height: 20px;
+    border-radius: 10px;
+    border: 2px solid {THEME['surface2']};
+    background: transparent;
+}}
+QRadioButton::indicator:checked {{
+    border: 2px solid {THEME['accent']};
+    background: {THEME['accent']};
+    image: none;
+}}
+
+QLineEdit, QComboBox {{
+    background-color: {THEME['surface0']};
+    border: 1px solid {THEME['surface2']};
+    border-radius: 8px;
+    padding: 10px;
+    color: {THEME['text_main']};
+    font-family: 'Consolas', monospace;
+    font-size: 12px;
+}}
+QLineEdit:focus, QComboBox:focus {{
+    border: 1px solid {THEME['accent']};
+}}
+
+/* --- BUTTONS --- */
+QPushButton {{
+    background-color: {THEME['surface2']};
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    color: {THEME['text_main']};
+    font-weight: 600;
+    font-size: 13px;
+}}
+QPushButton:hover {{
+    background-color: {THEME['surface2']}88; /* Slightly lighter */
+    border: 1px solid {THEME['accent']};
+    color: {THEME['accent']};
+}}
+QPushButton:pressed {{
+    background-color: {THEME['accent']};
+    color: #000;
+}}
+
+/* Specialize Primary Button */
+QPushButton#ApplyButton {{
+    background-color: {THEME['accent']};
+    color: #0F172A; /* Dark Text */
+    font-size: 14px;
+}}
+QPushButton#ApplyButton:hover {{
+    background-color: {THEME['accent_hover']};
+    border: none;
+}}
+
+/* Specialize Test Button */
 QPushButton#TestButton {{
+    background-color: transparent;
+    border: 1px solid {THEME['surface2']};
+    padding: 6px 12px;
+    font-size: 11px;
+}}
+QPushButton#TestButton:hover {{
     border-color: {THEME['success']};
     color: {THEME['success']};
 }}
-QPushButton#ApplyButton {{
-    background: {THEME['accent']};
-    color: #000;
-    border: none;
+
+/* --- SCROLLBARS --- */
+QScrollBar:vertical {{
+    background: transparent;
+    width: 8px;
+    margin: 0px;
 }}
-QPushButton#ApplyButton:hover {{
-    background: #00d0e0;
+QScrollBar::handle:vertical {{
+    background: {THEME['surface2']};
+    min-height: 20px;
+    border-radius: 4px;
+}}
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+    height: 0px;
+}}
+QScrollArea {{
+    background: transparent;
+    border: none;
 }}
 """
 
@@ -137,83 +209,136 @@ class TechnologyTab(QWidget):
         layout.addStretch()
     
     def _create_engine_group(self, engine_id: str, info: dict, active_engine: str):
-        """Create a group box for an engine"""
+        """Create a modern card for an engine"""
+        # Create Main Group
         group = QGroupBox(info.get("name", engine_id))
+        
+        # Determine Status Colors/Text
+        status = info.get("status", "unknown")
+        is_active = (engine_id == active_engine)
+        
+        # Main Layout
         layout = QVBoxLayout()
+        layout.setSpacing(12)
+        group.setLayout(layout)
         
-        # Radio button
-        radio = QRadioButton("Use this engine")
+        # Top Row: Radio + Status Badge
+        top_row = QHBoxLayout()
+        
+        radio = QRadioButton("Enable Engine")
         radio.setProperty("engine_id", engine_id)
-        if engine_id == active_engine:
+        if is_active:
             radio.setChecked(True)
-        
         self.button_group.addButton(radio)
         radio.toggled.connect(lambda checked, eid=engine_id: 
                              self._on_engine_selected(eid) if checked else None)
+        top_row.addWidget(radio)
         
-        layout.addWidget(radio)
+        # Status Badge (Label with color)
+        status_color = THEME.get(status, THEME['text_dim'])
+        if status == "active": status_color = THEME['success']
+        if status == "error": status_color = THEME['error']
         
-        # Status indicator
-        status = info.get("status", "unknown")
-        status_text = {
-            "active": f"✓ CONNECTED",
-            "error": f"⚠ ERROR",
-            "unknown": "⊗ NOT CONFIGURED"
-        }.get(status, "⊗ UNKNOWN")
+        status_badge = QLabel(f"• {status.upper()}")
+        status_badge.setStyleSheet(f"color: {status_color}; font-weight: bold; font-family: 'Consolas'; font-size: 11px;")
+        top_row.addWidget(status_badge)
+        top_row.addStretch()
         
-        status_color = {
-            "active": THEME['success'],
-            "error": THEME['error'],
-            "unknown": THEME['dim']
-        }.get(status, THEME['dim'])
+        layout.addLayout(top_row)
         
-        status_label = QLabel(f"Status: {status_text}")
-        status_label.setStyleSheet(f"color: {status_color}; font-family: 'Consolas'; font-size: 11px;")
-        layout.addWidget(status_label)
-        
-        # Error message if any
+        # Description (if active or expanded - currently always show description for clarity)
+        desc_text = info.get("description", "")
+        if desc_text:
+            desc = QLabel(desc_text)
+            desc.setWordWrap(True)
+            desc.setStyleSheet(f"color: {THEME['text_dim']}; font-size: 11px; margin-left: 28px;")
+            layout.addWidget(desc)
+
+        # API Key / Error Area
+        # If error, show red alert box
         if status == "error" and "error_msg" in info:
-            error_label = QLabel(f"└ {info['error_msg']}")
-            error_label.setStyleSheet(f"color: {THEME['error']}; font-size: 10px; padding-left: 20px;")
-            layout.addWidget(error_label)
-        
-        # API Key field if required
+            err_frame = QFrame()
+            err_frame.setStyleSheet(f"background: {THEME['error']}22; border-radius: 6px; padding: 8px;")
+            err_layout = QHBoxLayout(err_frame)
+            err_layout.setContentsMargins(8,4,8,4)
+            
+            err_lbl = QLabel(f"⚠ {info['error_msg']}")
+            err_lbl.setStyleSheet(f"color: {THEME['error']}; font-size: 11px;")
+            err_layout.addWidget(err_lbl)
+            
+            layout.addWidget(err_frame)
+            
+        # Key Input (only visible if requires key)
         if info.get("requires_key", False):
-            key_layout = QHBoxLayout()
-            key_label = QLabel("API Key:")
-            key_label.setStyleSheet(f"color: {THEME['dim']}; font-size: 10px;")
+            key_frame = QFrame()
+            key_frame.setStyleSheet(f"background: {THEME['surface0']}; border-radius: 6px; margin-left: 20px;")
+            key_layout = QHBoxLayout(key_frame)
+            key_layout.setContentsMargins(8,8,8,8)
             
-            key_input = QLineEdit()
-            key_input.setEchoMode(QLineEdit.Password)
-            key_input.setPlaceholderText("Enter API key...")
-            key_input.setMaximumWidth(200)
+            key_lbl = QLabel("API KEY:")
+            key_lbl.setStyleSheet(f"color: {THEME['text_dim']}; font-size: 10px; font-weight: bold;")
             
-            test_btn = QPushButton("🔄 Test")
+            key_in = QLineEdit()
+            key_in.setEchoMode(QLineEdit.Password)
+            key_in.setPlaceholderText("••••••••••••••")
+            key_in.setStyleSheet("border: none; background: transparent;")
+            
+            test_btn = QPushButton("Test")
             test_btn.setObjectName("TestButton")
-            test_btn.setFixedWidth(70)
+            test_btn.setCursor(Qt.PointingHandCursor)
             test_btn.clicked.connect(lambda: self._test_engine(engine_id))
             
-            key_layout.addWidget(key_label)
-            key_layout.addWidget(key_input)
+            key_layout.addWidget(key_lbl)
+            key_layout.addWidget(key_in, 1)
             key_layout.addWidget(test_btn)
-            key_layout.addStretch()
             
-            layout.addLayout(key_layout)
-        
-        # Additional info
-        info_text = []
-        if info.get("free", False):
-            info_text.append("Cost: FREE")
-        else:
-            info_text.append("Cost: PAID")
-        
-        if info_text:
-            info_label = QLabel(" | ".join(info_text))
-            info_label.setStyleSheet(f"color: {THEME['dim']}; font-size: 9px; padding-left: 20px;")
-            layout.addWidget(info_label)
-        
-        group.setLayout(layout)
+            layout.addWidget(key_frame)
+            
+        # Optional: Add dynamic controls if needed (like Voice Selection for Kokoro)
+        if engine_id == "kokoro" and is_active:
+             self._add_voice_selector(layout)
+
         return group
+
+    def _add_voice_selector(self, parent_layout):
+        """Add specific Kokoro controls"""
+        try:
+            from core.engines.tts.kokoro_engine import KokoroEngine
+            # Just a quick check, ideally we use the instance from Voice but we can't import main instance easily
+            # Use tech_manager to get options
+            pass
+            # For this refactor, we keep it simple. The previous code had it hardcoded in a specific block.
+            # We will rely on user selecting Kokoro to triggering logic elsewhere if we want dynamic loading.
+            # To keep this clean, I will recreate the voice selector logic here if feasible.
+            
+            # Re-implementing the simpler version:
+            v_frame = QFrame()
+            v_frame.setStyleSheet(f"margin-left: 20px; margin-top: 8px;")
+            v_layout = QHBoxLayout(v_frame)
+            v_layout.setContentsMargins(0,0,0,0)
+            
+            v_lbl = QLabel("Voice Model:")
+            v_lbl.setStyleSheet(f"color: {THEME['text_dim']};")
+            
+            v_combo = QComboBox()
+            # Hardcoded list for speed as per previous artifact
+            opts = ["es_pe", "af_bella", "af_sarah", "am_adam", "am_michael", "bf_emma", "bf_isabella", "bm_george", "bm_lewis"]
+            v_combo.addItems(opts)
+            
+            # Get current
+            curr = tech_manager.get_engine_option("tts", "kokoro", "voice") or "es_pe"
+            v_combo.setCurrentText(curr)
+            
+            v_combo.currentTextChanged.connect(lambda t: tech_manager.set_engine_option("tts", "kokoro", "voice", t))
+            
+            v_layout.addWidget(v_lbl)
+            v_layout.addWidget(v_combo)
+            v_layout.addStretch()
+            
+            parent_layout.addWidget(v_frame)
+            
+        except ImportError:
+            pass
     
     def _on_engine_selected(self, engine_id: str):
         """Called when user selects a different engine"""
@@ -248,16 +373,22 @@ class AdminPanel(QDialog):
         self.setLayout(layout)
         
         # Header
-        header = QLabel("⚙ TECHNOLOGY CONFIGURATION")
-        header_font = QFont("Segoe UI", 14, QFont.Bold)
-        header.setFont(header_font)
-        header.setStyleSheet(f"color: {THEME['accent']}; padding: 10px;")
-        layout.addWidget(header)
+        header_frame = QFrame()
+        header_frame.setStyleSheet("background: transparent; margin-bottom: 20px;")
+        header_layout = QVBoxLayout(header_frame)
         
-        # Info Label
-        info = QLabel("Select the technologies you want to use for each category")
-        info.setStyleSheet(f"color: {THEME['dim']}; font-size: 10px; padding: 0 10px 10px 10px;")
-        layout.addWidget(info)
+        title = QLabel("HABLAME // CORE")
+        title.setFont(QFont("Segoe UI Black", 24))
+        title.setStyleSheet(f"color: {THEME['text_main']}; letter-spacing: 2px;")
+        
+        subtitle = QLabel("AGI ORCHESTRATION & CONFIGURATION CONSOLE")
+        subtitle.setFont(QFont("Segoe UI", 9, QFont.Bold))
+        subtitle.setStyleSheet(f"color: {THEME['accent']}; letter-spacing: 4px;")
+        
+        header_layout.addWidget(title)
+        header_layout.addWidget(subtitle)
+        
+        layout.addWidget(header_frame)
         
         # Tabs
         tabs = QTabWidget()
@@ -341,8 +472,15 @@ class AdminPanel(QDialog):
     
     def _create_advanced_tab(self):
         """Create Advanced Modules tab showing optional enhancements"""
-        widget = QWidget()
-        layout = QVBoxLayout(widget)
+        # Main container with ScrollArea
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet(f"background: {THEME['surface0']}; border: none;")
+        
+        container = QWidget()
+        scroll.setWidget(container)
+        
+        layout = QVBoxLayout(container)
         
         # Info header
         info = QLabel("Optional modules to enhance capabilities")
@@ -363,54 +501,131 @@ class AdminPanel(QDialog):
                 layout.addWidget(module_frame)
         
         layout.addStretch()
-        return widget
+        return scroll
     
     def _create_module_card(self, module_id: str, info: dict):
-        """Create a card for an advanced module"""
+        """Create a modern card for an advanced module"""
         frame = QFrame()
-        frame.setStyleSheet(f"background: {THEME['panel']}; border: 1px solid #333; border-radius: 4px; padding: 8px;")
+        # Card Style
+        frame.setStyleSheet(f"""
+            QFrame {{
+                background-color: {THEME['surface1']};
+                border: 1px solid {THEME['surface2']};
+                border-radius: 12px;
+            }}
+        """)
         
         layout = QVBoxLayout(frame)
-        layout.setSpacing(4)
+        layout.setSpacing(8)
         
-        # Name
+        # Header Row: Name + Status Icon
+        h_row = QHBoxLayout()
         name_label = QLabel(info.get("name", module_id))
-        name_label.setStyleSheet("font-weight: bold; font-size: 11px;")
-        layout.addWidget(name_label)
-        
-        # Description
-        desc = info.get("description", "")
-        if desc:
-            desc_label = QLabel(f"└ {desc}")
-            desc_label.setWordWrap(True)
-            desc_label.setStyleSheet(f"color: {THEME['dim']}; font-size: 9px;")
-            layout.addWidget(desc_label)
-        
-        # Status and Install button
-        btn_layout = QHBoxLayout()
+        name_label.setStyleSheet("font-weight: 800; font-size: 13px; border: none; background: transparent;")
         
         status = info.get("status", "not_installed")
-        status_label = QLabel(f"Status: {'⊗ NOT INSTALLED' if status == 'not_installed' else '✓ INSTALLED'}")
-        status_label.setStyleSheet(f"font-size: 9px; font-family: 'Consolas';")
-        btn_layout.addWidget(status_label)
+        status_icon = "✓" if status != "not_installed" else "⚪"
+        status_color = THEME['success'] if status != "not_installed" else THEME['text_dim']
         
+        stat_lbl = QLabel(status_icon)
+        stat_lbl.setStyleSheet(f"color: {status_color}; font-size: 14px; font-weight: bold; border: none; background: transparent;")
+        
+        h_row.addWidget(name_label)
+        h_row.addStretch()
+        h_row.addWidget(stat_lbl)
+        layout.addLayout(h_row)
+        
+        # Divider
+        line = QFrame()
+        line.setFrameShape(QFrame.HLine)
+        line.setStyleSheet(f"color: {THEME['surface2']}; border: none; background: {THEME['surface2']}; max-height: 1px;")
+        layout.addWidget(line)
+        
+        # Description
+        desc_text = info.get("description", "")
+        desc = QLabel(desc_text)
+        desc.setWordWrap(True)
+        desc.setStyleSheet(f"color: {THEME['text_dim']}; font-size: 11px; border: none; background: transparent;")
+        layout.addWidget(desc)
+        
+        # Action Button (Install)
         install_cmd = info.get("install_cmd", "")
         if install_cmd and status == "not_installed":
-            install_btn = QPushButton("📦 Install")
-            install_btn.setFixedWidth(80)
+            layout.addSpacing(8)
+            install_btn = QPushButton("INSTALL MODULE")
+            install_btn.setCursor(Qt.PointingHandCursor)
+            install_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {THEME['surface2']};
+                    color: {THEME['accent']};
+                    font-size: 10px;
+                    padding: 6px;
+                    border-radius: 6px;
+                }}
+                QPushButton:hover {{
+                    background-color: {THEME['accent']};
+                    color: #000;
+                }}
+            """)
             install_btn.clicked.connect(lambda: self._install_module(module_id, install_cmd))
-            btn_layout.addWidget(install_btn)
-        
-        btn_layout.addStretch()
-        layout.addLayout(btn_layout)
+            layout.addWidget(install_btn)
         
         return frame
     
     def _install_module(self, module_id: str, install_cmd: str):
-        """Show install command to user"""
-        from PySide6.QtWidgets import QMessageBox
-        QMessageBox.information(self, "Install Command", 
-                               f"To install {module_id}, run:\n\n{install_cmd}\n\nin your terminal")
+        """Run install command"""
+        from PySide6.QtWidgets import QMessageBox, QProgressDialog
+        from PySide6.QtCore import Qt
+        import subprocess
+        
+        # Confirm
+        reply = QMessageBox.question(self, "Install Module", 
+                                    f"Do you want to run:\n{install_cmd}?",
+                                    QMessageBox.Yes | QMessageBox.No)
+        
+        if reply == QMessageBox.Yes:
+            # Show simple progress (blocking for now for simplicity, ideally async)
+            progress = QProgressDialog(f"Installing {module_id}...", "Cancel", 0, 0, self)
+            progress.setWindowModality(Qt.WindowModal)
+            progress.show()
+            
+            try:
+                # Run command
+                nervous_system.system(f"Installing {module_id}: {install_cmd}")
+                
+                # Use subprocess to run the command
+                process = subprocess.Popen(
+                    install_cmd, 
+                    shell=True, 
+                    stdout=subprocess.PIPE, 
+                    stderr=subprocess.PIPE,
+                    text=True
+                )
+                
+                # Wait for completion
+                while process.poll() is None:
+                    QApplication.processEvents()
+                    if progress.wasCanceled():
+                        process.terminate()
+                        return
+                
+                stdout, stderr = process.communicate()
+                
+                progress.close()
+                
+                if process.returncode == 0:
+                    QMessageBox.information(self, "Success", f"{module_id} installed successfully!")
+                    # Update status in config
+                    tech_manager.set_advanced_module_status(module_id, "active") 
+                    # Refresh UI
+                    self.close()
+                    self.init_ui()
+                else:
+                    QMessageBox.critical(self, "Error", f"Installation failed:\n{stderr}")
+                    
+            except Exception as e:
+                progress.close()
+                QMessageBox.critical(self, "Error", f"Execution failed: {e}")
     
     def _on_tech_changed(self, category: str, engine_id: str):
         """Called when user changes a technology"""
