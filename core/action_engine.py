@@ -90,12 +90,23 @@ class AutomationEngine:
         keys = params.get("key", "").split('+')
         clean_keys = [k.strip().lower() for k in keys]
         nervous_system.motor(f"Simulando pulsación: {clean_keys}")
-        pyautogui.hotkey(*clean_keys)
-        return True
+        try:
+            pyautogui.hotkey(*clean_keys)
+            time.sleep(0.3)  # Wait for action to complete
+            return True
+        except Exception as e:
+            nervous_system.error("MOTOR", f"Error en hotkey: {e}")
+            return False
 
     def _do_click(self, params):
         target_name = params.get("element", "")
         nervous_system.motor(f"Escaneando entorno visual buscando: '{target_name}'...")
+        
+        # Check for keyboard shortcuts as smart fallback FIRST
+        shortcut = self._get_keyboard_shortcut(target_name)
+        if shortcut:
+            nervous_system.motor(f"Usando atajo de teclado inteligente: {shortcut}")
+            return self._do_press_key({"key": shortcut})
         
         window = auto.GetForegroundControl()
         if not window:
@@ -111,14 +122,14 @@ class AutomationEngine:
 
         # 2. Búsqueda Profunda + Fuzzy (Lenta pero Poderosa)
         nervous_system.motor("Objetivo no visible. Iniciando Escaneo Profundo (Deep Scan)...")
-        best_match = self._fuzzy_find_recursive(window, target_name, max_depth=10) # Profundidad 10 es bastante
+        best_match = self._fuzzy_find_recursive(window, target_name, max_depth=10)
         
         if best_match:
             nervous_system.motor(f"Objetivo encontrado (Fuzzy Logic): '{best_match.Name}'")
             self._click_element(best_match)
             return True
         
-        nervous_system.error("MOTOR", f"Objetivo '{target_name}' no encontrado en el árbol visual actual.")
+        nervous_system.error("MOTOR", f"Objetivo '{target_name}' no encontrado. Smart fallback no disponible.")
         return False
 
     # --- UTILIDADES DE PRECISIÓN ---
@@ -198,8 +209,112 @@ class AutomationEngine:
         except Exception as e:
             nervous_system.error("MOTOR", f"Error en escaneo profundo: {e}")
             return None
+    
+    def _get_keyboard_shortcut(self, target_text: str) -> str:
+        """
+        Smart keyboard shortcut mapping for common actions
+        Returns keyboard shortcut if target matches known patterns
+        """
+        target_lower = target_text.lower().strip()
+        
+        # File operations (common across most apps)
+        shortcuts = {
+            # File menu
+            "guardar": "ctrl+s",
+            "save": "ctrl+s",
+            "abrir": "ctrl+o",
+            "open": "ctrl+o",
+            "nuevo": "ctrl+n",
+            "new": "ctrl+n",
+            "cerrar": "ctrl+w",
+            "close": "ctrl+w",
+            "imprimir": "ctrl+p",
+            "print": "ctrl+p",
+            
+            # Edit menu
+            "copiar": "ctrl+c",
+            "copy": "ctrl+c",
+            "pegar": "ctrl+v",
+            "paste": "ctrl+v",
+            "cortar": "ctrl+x",
+            "cut": "ctrl+x",
+            "deshacer": "ctrl+z",
+            "undo": "ctrl+z",
+            "rehacer": "ctrl+y",
+            "redo": "ctrl+y",
+            "buscar": "ctrl+f",
+            "find": "ctrl+f",
+            
+            # Window operations
+            "minimizar": "win+down",
+            "minimize": "win+down",
+            "maximizar": "win+up",
+            "maximize": "win+up",
+            
+            # Browser
+            "actualizar": "f5",
+            "refresh": "f5",
+            "nueva pestaña": "ctrl+t",
+            "new tab": "ctrl+t",
+            "cerrar pestaña": "ctrl+w",
+            "close tab": "ctrl+w",
+            
+            # System
+            "escritorio": "win+d",
+            "desktop": "win+d",
+            "explorador": "win+e",
+            "explorer": "win+e"
+        }
+        
+        return shortcuts.get(target_lower, None)
+    
+    # --- NEW WINDOW MANAGEMENT COMMANDS ---
+    
+    def _do_minimize(self, params):
+        """Minimize current window"""
+        nervous_system.motor("Minimizando ventana activa...")
+        pyautogui.hotkey('win', 'down')
+        return True
+    
+    def _do_maximize(self, params):
+        """Maximize current window"""
+        nervous_system.motor("Maximizando ventana activa...")
+        pyautogui.hotkey('win', 'up')
+        return True
+    
+    def _do_close_window(self, params):
+        """Close current window"""
+        nervous_system.motor("Cerrando ventana activa...")
+        pyautogui.hotkey('alt', 'f4')
+        return True
+    
+    def _do_save(self, params):
+        """Universal save command"""
+        nervous_system.motor("Guardando documento (Ctrl+S)...")
+        pyautogui.hotkey('ctrl', 's')
+        time.sleep(0.5)
+        return True
+    
+    def _do_refresh(self, params):
+        """Refresh/Reload"""
+        nervous_system.motor("Actualizando (F5)...")
+        pyautogui.press('f5')
+        return True
+    
+    def _do_screenshot(self, params):
+        """Take screenshot"""
+        nervous_system.motor("Capturando pantalla...")
+        pyautogui.hotkey('win', 'shift', 's')  # Windows Snipping Tool
+        return True
+    
+    def _do_switch_app(self, params):
+        """Switch between applications (Alt+Tab)"""
+        nervous_system.motor("Cambiando de aplicación...")
+        pyautogui.hotkey('alt', 'tab')
+        time.sleep(0.5)
+        return True
 
 if __name__ == "__main__":
     engine = AutomationEngine()
-    # Test Fuzzy
-    # engine.execute_task({"action": "click", "parameters": {"element": "File"}})
+    # Test
+    # engine.execute_task({"action": "save", "parameters": {}})

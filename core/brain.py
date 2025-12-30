@@ -32,15 +32,41 @@ class Brain:
         }
 
         ACCIONES DISPONIBLES:
-        1. "open_app": {"app_name": "nombre"} -> Abrir programas
+        
+        BÁSICAS:
+        1. "open_app": {"app_name": "nombre"} -> Abrir programas (notepad, chrome, calculator)
         2. "type": {"text": "texto"} -> Escribir texto
-        3. "press_key": {"key": "nombre_tecla"} -> Presionar una tecla (enter, tab, esc)
-        4. "click": {"element": "descripción visual del elemento"} -> Hacer clic en botones/iconos
-        5. "system": {"command": "volume_up/mute/shutdown"} -> Control sistema
-        6. "unknown": {} -> Si no entiendes
+        3. "press_key": {"key": "tecla"} -> Presionar tecla o combinación (enter, ctrl+c)
+        4. "click": {"element": "nombre"} -> Clic en botones/menús (tiene fallback inteligente)
+        
+        COMANDOS DIRECTOS (Más rápidos y confiables):
+        5. "save": {} -> Guardar documento actual (Ctrl+S)
+        6. "minimize": {} -> Minimizar ventana activa
+        7. "maximize": {} -> Maximizar ventana activa
+        8. "close_window": {} -> Cerrar ventana activa
+        9. "refresh": {} -> Actualizar/Recargar (F5)
+        10. "screenshot": {} -> Tomar captura de pantalla
+        11. "switch_app": {} -> Cambiar entre aplicaciones
+        
+        ESPECIALES:
+        12. "chain": {"steps": [...]} -> Ejecutar múltiples acciones en secuencia
+        13. "unknown": {} -> Si no entiendes el comando
 
-        Ejemplo User: "Abre el bloc de notas y escribe hola"
-        Ejemplo Response:
+        IMPORTANTE: Prefiere comandos directos cuando sea posible. Por ejemplo:
+        - "guarda esto" -> usa "save" en vez de click en "Guardar"
+        - "minimiza" -> usa "minimize" en vez de click en botón minimizar
+        - "cierra" -> usa "close_window" en vez de click en X
+
+        Ejemplo 1 - Comando directo:
+        User: "guarda el documento"
+        {
+            "thought": "Usuario quiere guardar, uso comando directo",
+            "action": "save",
+            "parameters": {}
+        }
+
+        Ejemplo 2 - Secuencia:
+        User: "Abre el bloc de notas y escribe hola"
         {
             "thought": "Usuario quiere abrir notepad y escribir",
             "action": "chain", 

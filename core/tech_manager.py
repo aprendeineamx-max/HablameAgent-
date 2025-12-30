@@ -42,27 +42,41 @@ class TechnologyManager:
             return config
     
     def _get_default_config(self) -> Dict:
-        """Get default configuration with working technologies"""
+        """Get default configuration with ALL available technologies"""
         return {
             "active_stack": "default",
             "stacks": {
                 "default": {
                     "stt": "google_stt",
-                    "tts": "pyttsx3",
+                    "tts": "edge_tts",
                     "llm": "sambanova",
-                    "motor": "uiautomation"
+                    "motor": "uiautomation",
+                    "wake_word": "none",
+                    "vad": "none"
                 },
-                "premium": {
+                "premium_cloud": {
                     "stt": "hf_whisper",
                     "tts": "elevenlabs",
-                    "llm": "sambanova",
-                    "motor": "uiautomation"
+                    "llm": "openai_gpt4",
+                    "motor": "omniparser",
+                    "wake_word": "porcupine",
+                    "vad": "silero"
                 },
                 "local_only": {
-                    "stt": "local_whisper",
-                    "tts": "pyttsx3",
+                    "stt": "faster_whisper",
+                    "tts": "kokoro",
                     "llm": "local_llama",
-                    "motor": "uiautomation"
+                    "motor": "uiautomation",
+                    "wake_word": "porcupine",
+                    "vad": "silero"
+                },
+                "gaming": {
+                    "stt": "faster_whisper",
+                    "tts": "kokoro",
+                    "llm": "sambanova",
+                    "motor": "pydirectinput",
+                    "wake_word": "porcupine",
+                    "vad": "silero"
                 }
             },
             "technologies": {
@@ -71,29 +85,64 @@ class TechnologyManager:
                         "name": "Google Speech-to-Text",
                         "status": "active",
                         "requires_key": False,
-                        "free": True
+                        "free": True,
+                        "category": "Cloud",
+                        "latency": "~2-3s"
                     },
                     "hf_whisper": {
                         "name": "HuggingFace Whisper v3",
                         "status": "error",
                         "requires_key": True,
                         "free": True,
-                        "error_msg": "410 API Error"
+                        "category": "Cloud",
+                        "error_msg": "410 API Error",
+                        "latency": "~3-5s"
+                    },
+                    "faster_whisper": {
+                        "name": "Faster-Whisper (Local)",
+                        "status": "not_installed",
+                        "requires_key": False,
+                        "free": True,
+                        "category": "Local",
+                        "description": "4x faster than standard Whisper, runs offline",
+                        "install_cmd": "pip install faster-whisper",
+                        "latency": "~500ms-1s"
                     }
                 },
                 "tts": {
-                    "pyttsx3": {
-                        "name": "Local TTS (pyttsx3)",
+                    "edge_tts": {
+                        "name": "Microsoft Edge TTS",
                         "status": "active",
                         "requires_key": False,
-                        "free": True
+                        "free": True,
+                        "category": "Cloud",
+                        "description": "High quality neural voices"
                     },
                     "elevenlabs": {
                         "name": "ElevenLabs",
                         "status": "error",
                         "requires_key": True,
                         "free": False,
-                        "error_msg": "401 Free Tier Blocked"
+                        "category": "Cloud",
+                        "error_msg": "401 Free Tier Blocked",
+                        "description": "Premium voice cloning"
+                    },
+                    "pyttsx3": {
+                        "name": "pyttsx3 (Local)",
+                        "status": "active",
+                        "requires_key": False,
+                        "free": True,
+                        "category": "Local",
+                        "description": "Offline TTS, basic quality"
+                    },
+                    "kokoro": {
+                        "name": "Kokoro TTS (82M)",
+                        "status": "not_installed",
+                        "requires_key": False,
+                        "free": True,
+                        "category": "Local",
+                        "description": "Best-in-class local TTS, human-level intonation",
+                        "install_cmd": "pip install kokoro-tts"
                     }
                 },
                 "llm": {
@@ -101,7 +150,27 @@ class TechnologyManager:
                         "name": "SambaNova (Llama 3.3 70B)",
                         "status": "active",
                         "requires_key": True,
-                        "free": True
+                        "free": True,
+                        "category": "Cloud",
+                        "latency": "~1-2s"
+                    },
+                    "openai_gpt4": {
+                        "name": "OpenAI GPT-4 Turbo",
+                        "status": "not_configured",
+                        "requires_key": True,
+                        "free": False,
+                        "category": "Cloud",
+                        "description": "Most capable LLM available",
+                        "latency": "~1-3s"
+                    },
+                    "local_llama": {
+                        "name": "Local LLaMA 3.1 (Ollama)",
+                        "status": "not_installed",
+                        "requires_key": False,
+                        "free": True,
+                        "category": "Local",
+                        "description": "Run LLM offline with Ollama",
+                        "install_cmd": "Install Ollama from ollama.ai"
                     }
                 },
                 "motor": {
@@ -109,7 +178,122 @@ class TechnologyManager:
                         "name": "UIAutomation + PyAutoGUI",
                         "status": "active",
                         "requires_key": False,
-                        "free": True
+                        "free": True,
+                        "category": "Desktop",
+                        "description": "Standard Windows automation"
+                    },
+                    "omniparser": {
+                        "name": "Microsoft OmniParser",
+                        "status": "not_installed",
+                        "requires_key": False,
+                        "free": True,
+                        "category": "Vision",
+                        "description": "AI-powered screen understanding",
+                        "install_cmd": "pip install omniparser"
+                    },
+                    "playwright": {
+                        "name": "Playwright (Web)",
+                        "status": "not_installed",
+                        "requires_key": False,
+                        "free": True,
+                        "category": "Web",
+                        "description": "Modern browser automation",
+                        "install_cmd": "pip install playwright && playwright install"
+                    },
+                    "pydirectinput": {
+                        "name": "PyDirectInput (Gaming)",
+                        "status": "not_installed",
+                        "requires_key": False,
+                        "free": True,
+                        "category": "Gaming",
+                        "description": "Control games with DirectX input",
+                        "install_cmd": "pip install pydirectinput"
+                    }
+                },
+                "wake_word": {
+                    "none": {
+                        "name": "No Wake Word (Always Active)",
+                        "status": "active",
+                        "requires_key": False,
+                        "free": True,
+                        "category": "Basic"
+                    },
+                    "porcupine": {
+                        "name": "Porcupine (Picovoice)",
+                        "status": "not_installed",
+                        "requires_key": True,
+                        "free": False,
+                        "category": "Advanced",
+                        "description": "Custom wake words (~1MB, near-zero latency)",
+                        "install_cmd": "pip install pvporcupine"
+                    }
+                },
+                "vad": {
+                    "none": {
+                        "name": "No VAD (Energy Threshold)",
+                        "status": "active",
+                        "requires_key": False,
+                        "free": True,
+                        "category": "Basic"
+                    },
+                    "silero": {
+                        "name": "Silero VAD",
+                        "status": "not_installed",
+                        "requires_key": False,
+                        "free": True,
+                        "category": "Advanced",
+                        "description": "Detects speech vs background noise instantly",
+                        "install_cmd": "pip install silero-vad"
+                    }
+                }
+            },
+            "advanced_modules": {
+                "memory": {
+                    "mem0": {
+                        "name": "Mem0 (Long-term Memory)",
+                        "status": "not_installed",
+                        "description": "Remembers user preferences across sessions",
+                        "install_cmd": "pip install mem0"
+                    }
+                },
+                "context": {
+                    "screenpipe": {
+                        "name": "Screenpipe (24/7 Recording)",
+                        "status": "not_installed",
+                        "description": "Rewind AI alternative, records screen+audio locally",
+                        "install_cmd": "See screenpipe.dev"
+                    }
+                },
+                "orchestration": {
+                    "langgraph": {
+                        "name": "LangGraph (Agent Orchestration)",
+                        "status": "not_installed",
+                        "description": "Complex stateful AI agents with loops/retries",
+                        "install_cmd": "pip install langgraph"
+                    }
+                },
+                "security": {
+                    "presidio": {
+                        "name": "Microsoft Presidio (PII Detection)",
+                        "status": "not_installed",
+                        "description": "Automatically scrubs credit cards, phone numbers",
+                        "install_cmd": "pip install presidio-analyzer presidio-anonymizer"
+                    }
+                },
+                "database": {
+                    "chromadb": {
+                        "name": "ChromaDB (Vector Database)",
+                        "status": "not_installed",
+                        "description": "Local vector store for embeddings",
+                        "install_cmd": "pip install chromadb"
+                    }
+                },
+                "execution": {
+                    "open_interpreter": {
+                        "name": "Open Interpreter",
+                        "status": "not_installed",
+                        "description": "Run Python code on-the-fly (with sandbox)",
+                        "install_cmd": "pip install open-interpreter"
                     }
                 }
             }

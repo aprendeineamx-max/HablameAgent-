@@ -282,6 +282,20 @@ class AdminPanel(QDialog):
         motor_tab.technology_changed.connect(self._on_tech_changed)
         tabs.addTab(motor_tab, "✋ Motor Actions")
         
+        # Wake Word Tab
+        wake_tab = TechnologyTab("wake_word")
+        wake_tab.technology_changed.connect(self._on_tech_changed)
+        tabs.addTab(wake_tab, "🔊 Wake Word")
+        
+        # VAD Tab
+        vad_tab = TechnologyTab("vad")
+        vad_tab.technology_changed.connect(self._on_tech_changed)
+        tabs.addTab(vad_tab, "🎙 Voice Activity")
+        
+        # Advanced Modules Tab
+        advanced_tab = self._create_advanced_tab()
+        tabs.addTab(advanced_tab, "⚡ Advanced Modules")
+        
         layout.addWidget(tabs)
         
         # Stack Management
@@ -324,6 +338,79 @@ class AdminPanel(QDialog):
         button_layout.addWidget(apply_btn)
         
         layout.addLayout(button_layout)
+    
+    def _create_advanced_tab(self):
+        """Create Advanced Modules tab showing optional enhancements"""
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        
+        # Info header
+        info = QLabel("Optional modules to enhance capabilities")
+        info.setStyleSheet(f"color: {THEME['dim']}; font-size: 10px; padding: 5px;")
+        layout.addWidget(info)
+        
+        # Get advanced modules
+        advanced = tech_manager.active_config.get("advanced_modules", {})
+        
+        for category, modules in advanced.items():
+            # Category label
+            cat_label = QLabel(category.upper().replace("_", " "))
+            cat_label.setStyleSheet(f"color: {THEME['accent']}; font-weight: bold; font-size: 11px; padding-top: 10px;")
+            layout.addWidget(cat_label)
+            
+            for module_id, info in modules.items():
+                module_frame = self._create_module_card(module_id, info)
+                layout.addWidget(module_frame)
+        
+        layout.addStretch()
+        return widget
+    
+    def _create_module_card(self, module_id: str, info: dict):
+        """Create a card for an advanced module"""
+        frame = QFrame()
+        frame.setStyleSheet(f"background: {THEME['panel']}; border: 1px solid #333; border-radius: 4px; padding: 8px;")
+        
+        layout = QVBoxLayout(frame)
+        layout.setSpacing(4)
+        
+        # Name
+        name_label = QLabel(info.get("name", module_id))
+        name_label.setStyleSheet("font-weight: bold; font-size: 11px;")
+        layout.addWidget(name_label)
+        
+        # Description
+        desc = info.get("description", "")
+        if desc:
+            desc_label = QLabel(f"└ {desc}")
+            desc_label.setWordWrap(True)
+            desc_label.setStyleSheet(f"color: {THEME['dim']}; font-size: 9px;")
+            layout.addWidget(desc_label)
+        
+        # Status and Install button
+        btn_layout = QHBoxLayout()
+        
+        status = info.get("status", "not_installed")
+        status_label = QLabel(f"Status: {'⊗ NOT INSTALLED' if status == 'not_installed' else '✓ INSTALLED'}")
+        status_label.setStyleSheet(f"font-size: 9px; font-family: 'Consolas';")
+        btn_layout.addWidget(status_label)
+        
+        install_cmd = info.get("install_cmd", "")
+        if install_cmd and status == "not_installed":
+            install_btn = QPushButton("📦 Install")
+            install_btn.setFixedWidth(80)
+            install_btn.clicked.connect(lambda: self._install_module(module_id, install_cmd))
+            btn_layout.addWidget(install_btn)
+        
+        btn_layout.addStretch()
+        layout.addLayout(btn_layout)
+        
+        return frame
+    
+    def _install_module(self, module_id: str, install_cmd: str):
+        """Show install command to user"""
+        from PySide6.QtWidgets import QMessageBox
+        QMessageBox.information(self, "Install Command", 
+                               f"To install {module_id}, run:\n\n{install_cmd}\n\nin your terminal")
     
     def _on_tech_changed(self, category: str, engine_id: str):
         """Called when user changes a technology"""
