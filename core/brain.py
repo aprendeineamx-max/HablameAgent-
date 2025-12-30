@@ -3,8 +3,29 @@ import json
 from core.config import settings
 from core.logger import nervous_system
 
+# Import local LLM engine
+try:
+    from core.engines.llm.ollama_engine import OllamaEngine
+    OLLAMA_AVAILABLE = True
+except ImportError:
+    OLLAMA_AVAILABLE = False
+    nervous_system.cognitive("Ollama no disponible, usando cloud LLM")
+
 class Brain:
     def __init__(self):
+        # LOCAL LLM (Primary - if available)
+        self.local_llm = None
+        if OLLAMA_AVAILABLE:
+            try:
+                self.local_llm = OllamaEngine(model="llama3.1:8b")
+                if self.local_llm.is_available():
+                    nervous_system.cognitive("✓ Ollama LLaMA (local) disponible")
+                else:
+                    self.local_llm = None
+            except Exception as e:
+                nervous_system.error("COGNITIVE", f"Error inicializando Ollama: {e}")
+        
+        # CLOUD LLM (Fallback - SambaNova)
         # SambaNova es compatible con la librería de OpenAI si cambiamos la URL base
         self.client = OpenAI(
             base_url=settings.SAMBANOVA_URL,
@@ -12,15 +33,49 @@ class Brain:
         )
         # Using Llama 3.3 70B - current SambaNova model (405B is deprecated)
         self.model = "Meta-Llama-3.3-70B-Instruct" 
-        nervous_system.cognitive(f"Cortex Central (SambaNova {self.model}) Conectado.")
+        nervous_system.cognitive(f"Cortex Central (Local+Cloud) Conectado.")
 
-    def think(self, user_input, screen_context=None):
-        """
-        Analiza el input del usuario y retorna una ACCIÓN estructurada (JSON).
-        """
-        nervous_system.cognitive(f"Analizando intención: '{user_input}'...")
+    def think(self, user_message):
+        nervous_system.cognitive(f"Analizando intención: '{user_message}'...")
         
-        system_prompt = """
+        # PRIMARY: Ollama (Local LLM - no rate limits)
+        if self.local_llm is not None:
+            try:
+                response = self.local_llm.think(user_message, self._get_system_prompt())
+                if response:
+                    nervous_system.cognitive(f"✓ Ollama (local): {response[:100]}...")
+                    return json.loads(response)
+            except json.JSONDecodeError as e:
+                nervous_system.error("COGNITIVE", f"Ollama JSON inválido: {e}")
+            except Exception as e:
+                nervous_system.error("COGNITIVE", f"Ollama error: {e}, usando fallback...")
+        
+        # FALLBACK: SambaNova (Cloud LLM)
+        try:
+            nervous_system.cognitive("Usando SambaNova (cloud fallback)...")
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": self._get_system_prompt()},
+                    {"role": "user", "content": user_message}
+                ],
+                temperature=0.3,
+                max_tokens=512
+            )
+            
+            content = response.choices[0].message.content
+            nervous_system.cognitive(f"Sinapsis completada (SambaNova). Plan: {content[:100]}...")
+            return json.loads(content)
+            
+        except Exception as e:
+            nervous_system.error("COGNITIVE", f"Derrame cerebral (Error API): {e}")
+            return {"action": "error", "parameters": {}}
+    
+    def _get_system_prompt(self):
+        """
+        Returns the system prompt for the LLM.
+        """
+        return """
         Eres un Asistente de Accesibilidad para Windows (PC Agent).
         Tu objetivo es permitir que el usuario controle TODO el ordenador con voz.
         

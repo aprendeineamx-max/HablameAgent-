@@ -1,9 +1,18 @@
 import speech_recognition as sr
-import os
 import requests
 import tempfile
+import os
+import pyaudio
 from core.config import settings
 from core.logger import nervous_system
+
+# Import local STT engine
+try:
+    from core.engines.stt.faster_whisper_engine import FasterWhisperEngine
+    FASTER_WHISPER_AVAILABLE = True
+except ImportError:
+    FASTER_WHISPER_AVAILABLE = False
+    nervous_system.sensory("Faster-Whisper no disponible, usando cloud STT")
 
 class Ear:
     def __init__(self):
@@ -15,13 +24,31 @@ class Ear:
             
         # Usar el índice configurado (o detectado)
         self.device_index = settings.MIC_DEVICE_INDEX
-        self.microphone = sr.Microphone(device_index=self.device_index)
+        
+        # Auto-detect WO Mic if no index set
+        if self.device_index is None:
+            self.device_index = self._find_wo_mic_index()
+            if self.device_index:
+                settings.MIC_DEVICE_INDEX = self.device_index
         
         nervous_system.sensory(f"Inicializando micrófono (Index: {self.device_index})...")
+        self.microphone = sr.Microphone(device_index=self.device_index)
+        
+        # HuggingFace headers (fallback option)
         self.hf_headers = {
             "Authorization": f"Bearer {settings.HUGGINGFACE_API_KEY}"
-        }
-        nervous_system.sensory("Nervio Auditivo (HuggingFace) Inicializado.")
+        } if settings.HUGGINGFACE_API_KEY else None
+        
+        # Initialize local STT engine (Faster-Whisper)
+        self.local_engine = None
+        if FASTER_WHISPER_AVAILABLE:
+            try:
+                self.local_engine = FasterWhisperEngine(model_size="base")
+                nervous_system.sensory("✓ Faster-Whisper engine disponible")
+            except Exception as e:
+                nervous_system.error("SENSORY", f"Error inicializando Faster-Whisper: {e}")
+        
+        nervous_system.sensory("Nervio Auditivo (Local + Cloud) Inicializado.")
 
     @staticmethod
     def _find_wo_mic_index():
@@ -94,30 +121,37 @@ class Ear:
             # Procesar transcripción
             nervous_system.sensory("Audio capturado. Procesando...")
             
-            # PRIMARY: Google STT (100% reliable, free)
+            # PRIMARY: Faster-Whisper (Local, fastest, no rate limits)
+            if self.local_engine is not None:
+                try:
+                    text = self.local_engine.transcribe(audio, language="es")
+                    if text:
+                        nervous_system.sensory(f"✓ Faster-Whisper (local) transcribió: {text}")
+                        return text
+                except Exception as e:
+                    nervous_system.error("SENSORY", f"Faster-Whisper error: {e}, usando fallback...")
+            
+            # FALLBACK 1: Google STT (Cloud, reliable, free)
             try:
                 text = self.recognizer.recognize_google(audio, language="es-ES")
                 if text:
-                    nervous_system.sensory(f"Google STT escuchó: {text}")
+                    nervous_system.sensory(f"Google STT (fallback) escuchó: {text}")
                     return text
             except sr.UnknownValueError:
-                nervous_system.sensory("Google STT no detectó habla. Intentando fallback...")
+                nervous_system.sensory("Google STT no detectó habla.")
             except Exception as e:
-                nervous_system.error("SENSORY", f"Google STT error: {e}. Intentando fallback...")
+                nervous_system.error("SENSORY", f"Google STT error: {e}")
             
-            # FALLBACK: HuggingFace Whisper (if Google failed and key available)
+            # FALLBACK 2: HuggingFace Whisper (if key available)
             if settings.HUGGINGFACE_API_KEY:
-                nervous_system.sensory("Enviando a HuggingFace Whisper (fallback)...")
+                nervous_system.sensory("Intentando HuggingFace Whisper (último recurso)...")
                 text = self._transcribe_hf(audio)
                 if text:
-                    nervous_system.sensory(f"HF Whisper (fallback) escuchó: {text}")
+                    nervous_system.sensory(f"HF Whisper escuchó: {text}")
                     return text
-                else:
-                    nervous_system.sensory("HF Whisper (fallback) no pudo transcribir.")
-            else:
-                nervous_system.sensory("HuggingFace API Key no configurada, saltando fallback HF Whisper.")
-
-            return "" # No transcription found
+            
+            nervous_system.sensory("No se pudo transcribir el audio.")
+            return ""  # No transcription found
 
         except sr.WaitTimeoutError:
             return None

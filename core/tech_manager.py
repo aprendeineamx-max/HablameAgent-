@@ -44,7 +44,7 @@ class TechnologyManager:
     def _get_default_config(self) -> Dict:
         """Get default configuration with ALL available technologies"""
         return {
-            "active_stack": "default",
+            "active_stack": "local_only",  # Changed to local by default
             "stacks": {
                 "default": {
                     "stt": "google_stt",
@@ -64,11 +64,11 @@ class TechnologyManager:
                 },
                 "local_only": {
                     "stt": "faster_whisper",
-                    "tts": "kokoro",
-                    "llm": "local_llama",
+                    "tts": "edge_tts",  # Using Edge TTS (good quality, free)
+                    "llm": "ollama_llama",
                     "motor": "uiautomation",
-                    "wake_word": "porcupine",
-                    "vad": "silero"
+                    "wake_word": "none",
+                    "vad": "none"
                 },
                 "gaming": {
                     "stt": "faster_whisper",

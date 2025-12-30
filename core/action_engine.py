@@ -81,10 +81,26 @@ class AutomationEngine:
 
     def _do_type(self, params):
         text = params.get("text", "")
-        # Typing humanizado para evitar detección de bots en algunos sitios
         nervous_system.motor(f"Escribiendo texto: '{text}'")
-        pyautogui.write(text, interval=0.01)
-        return True
+        
+        try:
+            # Use clipboard method (more reliable for special characters)
+            import pyperclip
+            pyperclip.copy(text)
+            time.sleep(0.1)
+            pyautogui.hotkey('ctrl', 'v')
+            time.sleep(0.2)
+            return True
+        except ImportError:
+            # Fallback to direct typing if pyperclip not available
+            nervous_system.motor("Pyperclip no disponible, usando método directo...")
+            for char in text:
+                pyautogui.press(char)
+                time.sleep(0.01)
+            return True
+        except Exception as e:
+            nervous_system.error("MOTOR", f"Error al escribir: {e}")
+            return False
 
     def _do_press_key(self, params):
         keys = params.get("key", "").split('+')
