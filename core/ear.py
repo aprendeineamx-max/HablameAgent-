@@ -88,11 +88,36 @@ class Ear:
                 self.recognizer.dynamic_energy_threshold = True  # Re-habilitar ajuste dinamico
                 # self.recognizer.energy_threshold = 1000  # Dejar que el dinámico decida o iniciar en 300
                 self.recognizer.pause_threshold = 0.8    # Un poco mas de espera para pausas naturales
-                
+                self.recognizer.adjust_for_ambient_noise(source, duration=0.5)
                 audio = self.recognizer.listen(source, timeout=timeout, phrase_time_limit=phrase_time_limit)
             
-            nervous_system.sensory("Audio capturado. Enviando a la nube...")
-            return self._transcribe_hf(audio)
+            # Procesar transcripción
+            nervous_system.sensory("Audio capturado. Procesando...")
+            
+            # PRIMARY: Google STT (100% reliable, free)
+            try:
+                text = self.recognizer.recognize_google(audio, language="es-ES")
+                if text:
+                    nervous_system.sensory(f"Google STT escuchó: {text}")
+                    return text
+            except sr.UnknownValueError:
+                nervous_system.sensory("Google STT no detectó habla. Intentando fallback...")
+            except Exception as e:
+                nervous_system.error("SENSORY", f"Google STT error: {e}. Intentando fallback...")
+            
+            # FALLBACK: HuggingFace Whisper (if Google failed and key available)
+            if settings.HUGGINGFACE_API_KEY:
+                nervous_system.sensory("Enviando a HuggingFace Whisper (fallback)...")
+                text = self._transcribe_hf(audio)
+                if text:
+                    nervous_system.sensory(f"HF Whisper (fallback) escuchó: {text}")
+                    return text
+                else:
+                    nervous_system.sensory("HF Whisper (fallback) no pudo transcribir.")
+            else:
+                nervous_system.sensory("HuggingFace API Key no configurada, saltando fallback HF Whisper.")
+
+            return "" # No transcription found
 
         except sr.WaitTimeoutError:
             return None

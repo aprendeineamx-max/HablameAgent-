@@ -159,7 +159,12 @@ class ControlPanel(QWidget):
         self.btn_pause.setCheckable(True)
         self.btn_pause.clicked.connect(self.toggle_pause)
         
+        btn_admin = QPushButton("⚙ ADMIN")
+        btn_admin.clicked.connect(self.open_admin_panel)
+        btn_admin.setStyleSheet(f"border-color: {THEME['accent']}; color: {THEME['accent']};")
+        
         actions.addWidget(self.btn_pause)
+        actions.addWidget(btn_admin)
         actions.addStretch()
         
         self.layout_frame.addLayout(actions)
@@ -282,6 +287,17 @@ class ControlPanel(QWidget):
             
     def mouseReleaseEvent(self, event):
         self.old_pos = None
+    
+    def open_admin_panel(self):
+        """Open the admin configuration panel"""
+        from ui.admin_panel import AdminPanel
+        panel = AdminPanel(self)
+        panel.configuration_changed.connect(self._on_config_changed)
+        panel.exec()
+    
+    def _on_config_changed(self):
+        """Called when user changes configuration in admin panel"""
+        self.log("Configuration updated! Restart may be required for changes to take effect.", "sys")
     
     def close_app(self):
         QApplication.quit()

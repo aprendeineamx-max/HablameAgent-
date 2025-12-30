@@ -1,0 +1,71 @@
+{
+  "active_stack": "default",
+  "stacks": {
+    "default": {
+      "stt": "google_stt",
+      "tts": "pyttsx3",
+      "llm": "sambanova",
+      "motor": "uiautomation"
+    },
+    "premium": {
+      "stt": "hf_whisper",
+      "tts": "elevenlabs",
+      "llm": "sambanova",
+      "motor": "uiautomation"
+    },
+    "local_only": {
+      "stt": "local_whisper",
+      "tts": "pyttsx3",
+      "llm": "local_llama",
+      "motor": "uiautomation"
+    }
+  },
+  "technologies": {
+    "stt": {
+      "google_stt": {
+        "name": "Google Speech-to-Text",
+        "status": "active",
+        "requires_key": false,
+        "free": true
+      },
+      "hf_whisper": {
+        "name": "HuggingFace Whisper v3",
+        "status": "error",
+        "requires_key": true,
+        "free": true,
+        "error_msg": "410 API Error"
+      }
+    },
+    "tts": {
+      "pyttsx3": {
+        "name": "Local TTS (pyttsx3)",
+        "status": "active",
+        "requires_key": false,
+        "free": true
+      },
+      "elevenlabs": {
+        "name": "ElevenLabs",
+        "status": "error",
+        "requires_key": true,
+        "free": false,
+        "error_msg": "401 Free Tier Blocked"
+      }
+    },
+    "llm": {
+      "sambanova": {
+        "name": "SambaNova (Llama 3.3 70B)",
+        "status": "active",
+        "requires_key": true,
+        "free": true
+      }
+    },
+    "motor": {
+      "uiautomation": {
+        "name": "UIAutomation + PyAutoGUI",
+        "status": "active",
+        "requires_key": false,
+        "free": true
+      }
+    }
+  }
+}

@@ -151,31 +151,20 @@ class AutomationEngine:
         best_control = None
         best_ratio = 0.0
         
-        # Algoritmo de Walker para recorrer el árbol
-        walker = auto.TreeWalker(auto.Condition.TrueCondition)
-        element = walker.GetFirstChildElement(root_control)
-        
-        # Nota: Python recursion puede ser lenta/topear stack, 
-        # para depth 10 en UI Tree es mejor iterativo o limitado.
-        # Por simplicidad y potencia haremos una búsqueda plana de todos los descendientes
-        # usando la feature de FindAll de UIA que es C++ native (rápida).
-        
         try:
-            # Obtenemos TODOS los elementos (botones, textos, items)
-            # Cuidado: Esto puede ser lento en ventanas gigantes (como Word lleno)
-            # all_elements = root_control.GetChildren() + root_control.GetChildren() # Esto solo da hijos directos
+            # FIXED: TreeWalker no existe en uiautomation 2.0.29
+            # Usamos FindAll directamente que es más eficiente
             
-            # Mejor approach: Usar FindAll con Depth
             # Optimization: Solo buscar tipos clickeables
             conditions = auto.OrCondition(
                 auto.ControlTypeCondition(auto.ControlType.ButtonControl),
                 auto.ControlTypeCondition(auto.ControlType.MenuItemControl),
-                auto.ControlTypeCondition(auto.ControlType.TextControl), # A veces los botones son texto
+                auto.ControlTypeCondition(auto.ControlType.TextControl),
                 auto.ControlTypeCondition(auto.ControlType.TabItemControl),
                 auto.ControlTypeCondition(auto.ControlType.HyperlinkControl)
             )
             
-            # Limitamos el scope si es muy grande, pero usuario pidió POTENCIA
+            # Buscar en todos los descendientes
             matches = root_control.FindAll(auto.TreeScope.Descendants, conditions)
             
             target_lower = target_text.lower()
@@ -186,13 +175,12 @@ class AutomationEngine:
                 
                 name_lower = name.lower()
                 
-                # Match Exacto Contenido
+                # Match Exacto
                 if target_lower == name_lower:
                     return el
                 
                 # Match Parcial ("Guardar" in "Guardar Todo")
                 if target_lower in name_lower:
-                    # Damos prioridad a strings cortos (más exactos)
                     ratio = 0.9 if len(name_lower) < len(target_lower)*2 else 0.7
                     if ratio > best_ratio:
                         best_ratio = ratio
@@ -201,7 +189,7 @@ class AutomationEngine:
                 
                 # Fuzzy (Levenshtein)
                 ratio = difflib.SequenceMatcher(None, target_lower, name_lower).ratio()
-                if ratio > best_ratio and ratio > 0.6: # Umbral de confianza
+                if ratio > best_ratio and ratio > 0.6:
                     best_ratio = ratio
                     best_control = el
 
